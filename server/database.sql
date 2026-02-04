@@ -27,6 +27,15 @@ CREATE TABLE IF NOT EXISTS groups (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Table 3.5: Group Menus (Track which menus are assigned to a group)
+CREATE TABLE IF NOT EXISTS group_menus (
+    id SERIAL PRIMARY KEY,
+    group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE,
+    menu_id INTEGER REFERENCES menus(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(group_id, menu_id)
+);
+
 -- Table 4: Group Permissions (Menu-Module linking with CRUD access)
 CREATE TABLE IF NOT EXISTS group_permissions (
     id SERIAL PRIMARY KEY,

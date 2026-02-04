@@ -136,7 +136,9 @@ app.get('/api/groups', authenticateToken, async (req, res) => {
 app.post('/api/groups', authenticateToken, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { name, permissions } = req.body;
+    const { name, permissions, menuIds } = req.body;
+
+    console.log('Creating group:', { name, menuIds });
 
     await client.query('BEGIN');
 
@@ -146,6 +148,21 @@ app.post('/api/groups', authenticateToken, async (req, res) => {
       [name]
     );
     const group = groupResult.rows[0];
+
+    console.log('Group created with ID:', group.id);
+
+    // Store menu associations
+    if (menuIds && menuIds.length > 0) {
+      console.log('Storing menu associations for group', group.id, 'with menus:', menuIds);
+      for (const menuId of menuIds) {
+        const result = await client.query(
+          `INSERT INTO group_menus (group_id, menu_id) VALUES ($1, $2)
+           ON CONFLICT (group_id, menu_id) DO NOTHING`,
+          [group.id, menuId]
+        );
+        console.log('Inserted menu', menuId, 'for group', group.id);
+      }
+    }
 
     // Insert permissions
     if (permissions && permissions.length > 0) {
@@ -159,10 +176,11 @@ app.post('/api/groups', authenticateToken, async (req, res) => {
     }
 
     await client.query('COMMIT');
+    console.log('Group creation committed');
     res.status(201).json(group);
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error(error);
+    console.error('Error creating group:', error);
     if (error.code === '23505') {
       res.status(400).json({ error: 'Group name already exists' });
     } else {
@@ -170,6 +188,25 @@ app.post('/api/groups', authenticateToken, async (req, res) => {
     }
   } finally {
     client.release();
+  }
+});
+
+// Get group menus
+app.get('/api/groups/:id/menus', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `SELECT m.id, m.name 
+       FROM group_menus gm
+       JOIN menus m ON gm.menu_id = m.id
+       WHERE gm.group_id = $1
+       ORDER BY m.id`,
+      [id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -218,6 +255,107 @@ app.put('/api/groups/:id/permissions', authenticateToken, async (req, res) => {
 
     await client.query('COMMIT');
     res.json({ message: 'Permissions updated successfully' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error(error);
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Update group
+app.put('/api/groups/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Group name is required' });
+    }
+
+    const result = await pool.query(
+      'UPDATE groups SET name = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+      [name, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error(error);
+    if (error.code === '23505') {
+      res.status(400).json({ error: 'Group name already exists' });
+    } else {
+      res.status(500).json({ error: 'Server error' });
+    }
+  }
+});
+
+// Update group menus
+app.put('/api/groups/:id/menus', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { menuIds } = req.body;
+
+    if (!menuIds || !Array.isArray(menuIds) || menuIds.length === 0) {
+      return res.status(400).json({ error: 'At least one menu must be selected' });
+    }
+
+    // Verify group exists
+    const groupExists = await client.query('SELECT id FROM groups WHERE id = $1', [id]);
+    if (groupExists.rows.length === 0) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    await client.query('BEGIN');
+
+    // Delete existing menus for this group
+    await client.query('DELETE FROM group_menus WHERE group_id = $1', [id]);
+
+    // Insert new menus
+    for (const menuId of menuIds) {
+      await client.query(
+        'INSERT INTO group_menus (group_id, menu_id) VALUES ($1, $2) ON CONFLICT (group_id, menu_id) DO NOTHING',
+        [id, menuId]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.json({ message: 'Group menus updated successfully' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error(error);
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Delete group
+app.delete('/api/groups/:id', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+
+    await client.query('BEGIN');
+
+    // Delete group (cascading deletes will handle related records)
+    const result = await client.query(
+      'DELETE FROM groups WHERE id = $1 RETURNING id',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    await client.query('COMMIT');
+    res.json({ message: 'Group deleted successfully' });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error(error);
