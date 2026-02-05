@@ -248,6 +248,51 @@ body {
   cursor: pointer;
   border-bottom: 1px solid #e9ecef;
   font-size: 14px;
+}
+
+.full-screen-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease-in;
+}
+
+.full-screen-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 350px;
+  height: 100%;
+  background: white;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  overflow-y: auto;
+  z-index: 2001;
+  animation: slideInLeft 0.3s ease-in-out;
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
   color: #333;
 }
 
@@ -650,6 +695,7 @@ body {
 .section-header-buttons {
   display: flex;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .section-header-buttons .btn {
@@ -879,21 +925,23 @@ body {
 }
 
 .group-list-section {
-  margin-bottom: 40px;
+  margin-bottom: 30px;
   width: 100%;
+  max-width: 800px;
 }
 
 .group-list-section h4 {
-  font-size: 16px;
+  font-size: 14px;
   color: #333;
-  margin-bottom: 15px;
+  margin-bottom: 12px;
+  margin-top: 0;
 }
 
 .empty-message {
-  padding: 20px;
+  padding: 15px;
   color: #666;
   text-align: center;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .table-container {
@@ -904,6 +952,7 @@ body {
 .group-table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 13px;
 }
 
 .group-table {
@@ -913,15 +962,17 @@ body {
 
 .group-table th,
 .group-table td {
-  padding: 12px 15px;
+  padding: 8px 12px;
   text-align: left;
   border-bottom: 1px solid #e9ecef;
   color: #333;
+  font-size: 13px;
 }
 
 .group-table th {
   background: #f8f9fa;
   font-weight: 600;
+  font-size: 12px;
 }
 
 .group-table tr:hover {

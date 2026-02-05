@@ -17,6 +17,7 @@ function GroupManagement() {
   const [editSelectedMenus, setEditSelectedMenus] = useState({});
   const [viewingGroup, setViewingGroup] = useState(null);
   const [viewGroupMenus, setViewGroupMenus] = useState([]);
+  const [editingGroupModal, setEditingGroupModal] = useState(null);
 
   useEffect(() => {
     fetchGroups();
@@ -122,7 +123,7 @@ function GroupManagement() {
   };
 
   const handleEditGroup = (group) => {
-    setEditingGroup(group.id);
+    setEditingGroupModal(group);
     setEditGroupName(group.name);
     const menuMap = {};
     menus.forEach((menu) => {
@@ -184,9 +185,10 @@ function GroupManagement() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setEditingGroup(null);
+      setEditingGroupModal(null);
       setEditGroupName('');
       setEditSelectedMenus({});
+      setError('');
       fetchGroups();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to update group');
@@ -196,7 +198,7 @@ function GroupManagement() {
   };
 
   const handleCancelEdit = () => {
-    setEditingGroup(null);
+    setEditingGroupModal(null);
     setEditGroupName('');
     setError('');
   };
@@ -229,6 +231,12 @@ function GroupManagement() {
     setViewingGroup(null);
   };
 
+  const handleCloseEditModal = () => {
+    setEditingGroupModal(null);
+    setEditGroupName('');
+    setEditSelectedMenus({});
+  };
+
   return (
     <div className="group-management-container" style={{color: '#333'}}>
       <div className="section-header">
@@ -236,67 +244,118 @@ function GroupManagement() {
         <button
           className="btn btn-primary btn-small"
           onClick={() => setShowForm(!showForm)}
+          style={{ width: 'auto', padding: '8px 16px', fontSize: '12px', whiteSpace: 'nowrap' }}
         >
           {showForm ? '✕ Cancel' : '+ Add Group'}
         </button>
       </div>
 
       {showForm && (
-        <div className="section-container">
-          <h4>Create New Group</h4>
-          {error && <div className="error-message">{error}</div>}
-
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>Group Name *</label>
-              <input
-                type="text"
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                placeholder="Enter group name"
-                required
-              />
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            backgroundColor: '#fff',
+            padding: '30px',
+            borderRadius: '8px',
+            width: '90%',
+            maxWidth: '500px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0, color: '#333', fontSize: '20px' }}>Create New Group</h2>
+              <button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#999',
+                }}
+                onClick={() => {
+                  setShowForm(false);
+                  handleClear();
+                }}
+              >
+                ✕
+              </button>
             </div>
 
-            <div className="form-group">
-              <label>Select Menus *</label>
-              <div className="checkbox-grid">
-                {menus.map((menu) => (
-                  <div key={menu.id} className="checkbox-item">
-                    <input
-                      type="checkbox"
-                      id={`menu-${menu.id}`}
-                      checked={selectedMenus[menu.id] || false}
-                      onChange={() => handleMenuToggle(menu.id)}
-                    />
-                    <label htmlFor={`menu-${menu.id}`}>{menu.name}</label>
-                  </div>
-                ))}
+            {error && <div style={{ color: '#d32f2f', marginBottom: '15px', padding: '10px', backgroundColor: '#ffebee', borderRadius: '4px' }}>{error}</div>}
+
+            <form onSubmit={handleSubmit}>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ fontWeight: 'bold', color: '#333', display: 'block', marginBottom: '8px' }}>
+                  Group Name *
+                </label>
+                <input
+                  type="text"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  placeholder="Enter group name"
+                  required
+                  style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd', color: '#333', boxSizing: 'border-box' }}
+                />
               </div>
-            </div>
 
-            <div className="form-buttons">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={handleClear}
-              >
-                Clear
-              </button>
-              <button
-                type="submit"
-                className="btn btn-success"
-                disabled={loading}
-              >
-                {loading ? 'Creating...' : 'Submit'}
-              </button>
-            </div>
-          </form>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ fontWeight: 'bold', color: '#333', display: 'block', marginBottom: '8px' }}>
+                  Select Menus *
+                </label>
+                <div className="checkbox-grid">
+                  {menus.map((menu) => (
+                    <div key={menu.id} className="checkbox-item">
+                      <input
+                        type="checkbox"
+                        id={`menu-${menu.id}`}
+                        checked={selectedMenus[menu.id] || false}
+                        onChange={() => handleMenuToggle(menu.id)}
+                      />
+                      <label htmlFor={`menu-${menu.id}`}>{menu.name}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowForm(false);
+                    handleClear();
+                  }}
+                  style={{ padding: '10px 20px', fontSize: '14px' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-success"
+                  disabled={loading}
+                  style={{ padding: '10px 20px', fontSize: '14px' }}
+                >
+                  {loading ? 'Creating...' : 'Submit'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
       <div className="group-list-section">
-        <h4>Existing Groups</h4>
+        <h4 style={{ fontSize: '13px', fontWeight: 'bold' }}>Existing Groups</h4>
         {groups.length === 0 ? (
           <p className="empty-message">No groups yet. Create one to get started.</p>
         ) : (
@@ -312,85 +371,22 @@ function GroupManagement() {
               <tbody>
                 {groups.map((group) => (
                   <tr key={group.id}>
-                    {editingGroup === group.id ? (
-                      <>
-                        <td colSpan="3">
-                          <div style={{ padding: '10px' }}>
-                            <div style={{ marginBottom: '15px' }}>
-                              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px', color: '#333' }}>
-                                Group Name:
-                              </label>
-                              <input
-                                type="text"
-                                value={editGroupName}
-                                onChange={(e) => setEditGroupName(e.target.value)}
-                                placeholder="Group name"
-                                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', color: '#333' }}
-                              />
-                            </div>
-                            
-                            <div style={{ marginBottom: '15px' }}>
-                              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px', color: '#333' }}>
-                                Select Menus:
-                              </label>
-                              <div className="checkbox-grid">
-                                {menus.map((menu) => (
-                                  <div key={menu.id} className="checkbox-item">
-                                    <input
-                                      type="checkbox"
-                                      id={`edit-menu-${menu.id}`}
-                                      checked={editSelectedMenus[menu.id] || false}
-                                      onChange={(e) => {
-                                        setEditSelectedMenus((prev) => ({
-                                          ...prev,
-                                          [menu.id]: e.target.checked,
-                                        }));
-                                      }}
-                                    />
-                                    <label htmlFor={`edit-menu-${menu.id}`}>{menu.name}</label>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                              <button
-                                className="btn btn-success"
-                                onClick={() => handleSaveEdit(group.id)}
-                                disabled={loading}
-                                style={{ padding: '8px 16px', fontSize: '14px' }}
-                              >
-                                {loading ? 'Saving...' : 'Save'}
-                              </button>
-                              <button
-                                className="btn btn-secondary"
-                                onClick={handleCancelEdit}
-                                style={{ padding: '8px 16px', fontSize: '14px' }}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td>{group.name}</td>
-                        <td>{new Date(group.created_at).toLocaleDateString()}</td>
-                        <td style={{ position: 'relative' }}>
-                          <button
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              fontSize: '20px',
-                              cursor: 'pointer',
-                              padding: '5px 10px',
-                              color: '#333',
-                            }}
-                            onClick={() => setOpenMenu(openMenu === group.id ? null : group.id)}
-                          >
-                            ⋯
-                          </button>
+                    <td>{group.name}</td>
+                    <td>{new Date(group.created_at).toLocaleDateString()}</td>
+                    <td style={{ position: 'relative' }}>
+                      <button
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          fontSize: '16px',
+                          cursor: 'pointer',
+                          padding: '2px 8px',
+                          color: '#333',
+                        }}
+                        onClick={() => setOpenMenu(openMenu === group.id ? null : group.id)}
+                      >
+                        ⋯
+                      </button>
                           {openMenu === group.id && (
                             <div
                               style={{
@@ -464,15 +460,13 @@ function GroupManagement() {
                             </div>
                           )}
                         </td>
-                      </>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
       {viewingGroup && (
         <div style={{
@@ -574,6 +568,105 @@ function GroupManagement() {
                 style={{ padding: '10px 20px', fontSize: '14px' }}
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingGroupModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            backgroundColor: '#fff',
+            padding: '30px',
+            borderRadius: '8px',
+            width: '90%',
+            maxWidth: '500px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0, color: '#333', fontSize: '20px' }}>Edit Group</h2>
+              <button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#999',
+                }}
+                onClick={handleCloseEditModal}
+              >
+                ✕
+              </button>
+            </div>
+
+            {error && <div style={{ color: '#d32f2f', marginBottom: '15px', padding: '10px', backgroundColor: '#ffebee', borderRadius: '4px' }}>{error}</div>}
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ fontWeight: 'bold', color: '#333', display: 'block', marginBottom: '8px' }}>
+                Group Name:
+              </label>
+              <input
+                type="text"
+                value={editGroupName}
+                onChange={(e) => setEditGroupName(e.target.value)}
+                placeholder="Group name"
+                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd', color: '#333', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ fontWeight: 'bold', color: '#333', display: 'block', marginBottom: '8px' }}>
+                Select Menus:
+              </label>
+              <div className="checkbox-grid">
+                {menus.map((menu) => (
+                  <div key={menu.id} className="checkbox-item">
+                    <input
+                      type="checkbox"
+                      id={`edit-modal-menu-${menu.id}`}
+                      checked={editSelectedMenus[menu.id] || false}
+                      onChange={(e) => {
+                        setEditSelectedMenus((prev) => ({
+                          ...prev,
+                          [menu.id]: e.target.checked,
+                        }));
+                      }}
+                    />
+                    <label htmlFor={`edit-modal-menu-${menu.id}`}>{menu.name}</label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                className="btn btn-success"
+                onClick={() => handleSaveEdit(editingGroupModal.id)}
+                disabled={loading}
+                style={{ padding: '10px 20px', fontSize: '14px' }}
+              >
+                {loading ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={handleCloseEditModal}
+                style={{ padding: '10px 20px', fontSize: '14px' }}
+              >
+                Cancel
               </button>
             </div>
           </div>

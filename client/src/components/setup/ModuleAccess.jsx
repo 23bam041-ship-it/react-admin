@@ -8,6 +8,7 @@ function ModuleAccess() {
   const [menus, setMenus] = useState([]);
   const [modules, setModules] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState('');
+  const [selectedGroupMenus, setSelectedGroupMenus] = useState([]);
   const [expandedMenu, setExpandedMenu] = useState('');
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -27,6 +28,7 @@ function ModuleAccess() {
   useEffect(() => {
     if (selectedGroup) {
       fetchGroupPermissions(selectedGroup);
+      fetchGroupMenus(selectedGroup);
     }
   }, [selectedGroup]);
 
@@ -79,6 +81,18 @@ function ModuleAccess() {
     }
   };
 
+  const fetchGroupMenus = async (groupId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/groups/${groupId}/menus`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setSelectedGroupMenus(response.data);
+    } catch (error) {
+      console.error('Error fetching group menus:', error);
+    }
+  };
+
   const getModulesForMenu = (menuId) => {
     return modules.filter((module) => module.menu_id === parseInt(menuId));
   };
@@ -87,8 +101,8 @@ function ModuleAccess() {
     const newValue = !autoPermissions[permType];
     setAutoPermissions((prev) => ({ ...prev, [permType]: newValue }));
 
-    // Apply this permission to all modules in all menus
-    menus.forEach((menu) => {
+    // Apply this permission to all modules in selected group's menus only
+    selectedGroupMenus.forEach((menu) => {
       getModulesForMenu(menu.id).forEach((module) => {
         updatePermission(menu.id, module.id, `can_${permType}`, newValue);
       });
@@ -176,7 +190,7 @@ function ModuleAccess() {
         <h3>Module Access</h3>
       </div>
 
-      <div className="form-group">
+      <div className="form-group" style={{ maxWidth: '400px' }}>
         <label>Select Group *</label>
         <select
           value={selectedGroup}
@@ -184,6 +198,7 @@ function ModuleAccess() {
             setSelectedGroup(e.target.value);
             setExpandedMenu('');
           }}
+          style={{ fontSize: '13px', padding: '8px' }}
         >
           <option value="">Choose a group</option>
           {groups.map((group) => (
@@ -198,14 +213,15 @@ function ModuleAccess() {
         <>
           <div style={{ 
             backgroundColor: '#f0f0f0', 
-            padding: '15px', 
+            padding: '12px', 
             borderRadius: '4px', 
-            marginBottom: '20px',
-            border: '1px solid #ddd'
+            marginBottom: '15px',
+            border: '1px solid #ddd',
+            maxWidth: '700px'
           }}>
-            <h5 style={{ marginTop: 0, marginBottom: '15px', color: '#333' }}>Automatic Permissions (Apply to All Modules):</h5>
-            <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#333' }}>
+            <h5 style={{ marginTop: 0, marginBottom: '10px', color: '#333', fontSize: '13px' }}>Automatic Permissions (Apply to All Modules):</h5>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#333', fontSize: '12px' }}>
                 <input
                   type="checkbox"
                   checked={autoPermissions.view}
@@ -213,7 +229,7 @@ function ModuleAccess() {
                 />
                 View All
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#333' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#333', fontSize: '12px' }}>
                 <input
                   type="checkbox"
                   checked={autoPermissions.add}
@@ -221,7 +237,7 @@ function ModuleAccess() {
                 />
                 Add All
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#333' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#333', fontSize: '12px' }}>
                 <input
                   type="checkbox"
                   checked={autoPermissions.edit}
@@ -229,7 +245,7 @@ function ModuleAccess() {
                 />
                 Edit All
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#333' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#333', fontSize: '12px' }}>
                 <input
                   type="checkbox"
                   checked={autoPermissions.delete}
@@ -240,131 +256,134 @@ function ModuleAccess() {
             </div>
           </div>
 
-          <div className="menus-list">
-            <label>Select Menu and Modules:</label>
+          <div className="menus-list" style={{ maxWidth: '700px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 'bold' }}>Select Menu and Modules:</label>
             <div className="menus-container">
-            {menus.map((menu) => {
-              const modulesForThisMenu = getModulesForMenu(menu.id);
-              
-              return (
-                <div key={menu.id} className="menu-item">
-                  <button
-                    className="menu-toggle-btn"
-                    onClick={() =>
-                      setExpandedMenu(expandedMenu === menu.id ? '' : menu.id)
-                    }
-                  >
-                    <span className="menu-arrow">
-                      {expandedMenu === menu.id ? '▼' : '▶'}
-                    </span>
-                    {menu.name}
-                  </button>
-                  
-                  {expandedMenu === menu.id && (
-                    <div className="modules-list">
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '15px 0' }}>
-                        {modulesForThisMenu.map((module) => {
-                          const perm = getPermission(menu.id, module.id);
+              {selectedGroupMenus.map((menu) => {
+                const modulesForThisMenu = getModulesForMenu(menu.id);
+                
+                return (
+                  <div key={menu.id} className="menu-item">
+                    <button
+                      className="menu-toggle-btn"
+                      onClick={() =>
+                        setExpandedMenu(expandedMenu === menu.id ? '' : menu.id)
+                      }
+                      style={{ fontSize: '13px', padding: '8px 12px' }}
+                    >
+                      <span className="menu-arrow">
+                        {expandedMenu === menu.id ? '▼' : '▶'}
+                      </span>
+                      {menu.name}
+                    </button>
+                    
+                    {expandedMenu === menu.id && (
+                      <div className="modules-list">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 0' }}>
+                          {modulesForThisMenu.map((module) => {
+                            const perm = getPermission(menu.id, module.id);
 
-                          return (
-                            <div
-                              key={module.id}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                padding: '10px 15px',
-                                backgroundColor: '#f5f5f5',
-                                borderRadius: '4px',
-                                gap: '15px',
-                              }}
-                            >
-                              <span style={{ flex: 1, fontWeight: '500', color: '#333', minWidth: '150px' }}>
-                                {module.name}
-                              </span>
-                              
-                              <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', color: '#333' }}>
-                                <input
-                                  type="checkbox"
-                                  checked={perm.can_view}
-                                  onChange={(e) =>
-                                    updatePermission(
-                                      menu.id,
-                                      module.id,
-                                      'can_view',
-                                      e.target.checked
-                                    )
-                                  }
-                                />
-                                View
-                              </label>
+                            return (
+                              <div
+                                key={module.id}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  padding: '8px 12px',
+                                  backgroundColor: '#f5f5f5',
+                                  borderRadius: '4px',
+                                  gap: '10px',
+                                  flexWrap: 'wrap'
+                                }}
+                              >
+                                <span style={{ flex: '0 0 120px', fontWeight: '500', color: '#333', fontSize: '12px' }}>
+                                  {module.name}
+                                </span>
+                                
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', color: '#333', fontSize: '12px' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={perm.can_view}
+                                    onChange={(e) =>
+                                      updatePermission(
+                                        menu.id,
+                                        module.id,
+                                        'can_view',
+                                        e.target.checked
+                                      )
+                                    }
+                                  />
+                                  View
+                                </label>
 
-                              <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', color: '#333' }}>
-                                <input
-                                  type="checkbox"
-                                  checked={perm.can_add}
-                                  onChange={(e) =>
-                                    updatePermission(
-                                      menu.id,
-                                      module.id,
-                                      'can_add',
-                                      e.target.checked
-                                    )
-                                  }
-                                />
-                                Add
-                              </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', color: '#333', fontSize: '12px' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={perm.can_add}
+                                    onChange={(e) =>
+                                      updatePermission(
+                                        menu.id,
+                                        module.id,
+                                        'can_add',
+                                        e.target.checked
+                                      )
+                                    }
+                                  />
+                                  Add
+                                </label>
 
-                              <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', color: '#333' }}>
-                                <input
-                                  type="checkbox"
-                                  checked={perm.can_edit}
-                                  onChange={(e) =>
-                                    updatePermission(
-                                      menu.id,
-                                      module.id,
-                                      'can_edit',
-                                      e.target.checked
-                                    )
-                                  }
-                                />
-                                Edit
-                              </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', color: '#333', fontSize: '12px' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={perm.can_edit}
+                                    onChange={(e) =>
+                                      updatePermission(
+                                        menu.id,
+                                        module.id,
+                                        'can_edit',
+                                        e.target.checked
+                                      )
+                                    }
+                                  />
+                                  Edit
+                                </label>
 
-                              <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', color: '#333' }}>
-                                <input
-                                  type="checkbox"
-                                  checked={perm.can_delete}
-                                  onChange={(e) =>
-                                    updatePermission(
-                                      menu.id,
-                                      module.id,
-                                      'can_delete',
-                                      e.target.checked
-                                    )
-                                  }
-                                />
-                                Delete
-                              </label>
-                            </div>
-                          );
-                        })}
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', color: '#333', fontSize: '12px' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={perm.can_delete}
+                                    onChange={(e) =>
+                                      updatePermission(
+                                        menu.id,
+                                        module.id,
+                                        'can_delete',
+                                        e.target.checked
+                                      )
+                                    }
+                                  />
+                                  Delete
+                                </label>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
         </>
       )}
 
       {selectedGroup && (
-        <div className="form-buttons">
+        <div className="form-buttons" style={{ maxWidth: '700px', marginTop: '15px' }}>
           <button
             className="btn btn-success"
             onClick={handleSave}
             disabled={loading}
+            style={{ padding: '10px 20px', fontSize: '14px', width: 'auto' }}
           >
             {loading ? 'Saving...' : 'Save Permissions'}
           </button>
